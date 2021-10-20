@@ -149,14 +149,12 @@ TaskSystemParallelThreadPoolSleeping::TaskSystemParallelThreadPoolSleeping(int n
 }
 
 bool TaskSystemParallelThreadPoolSleeping::isAllIdle() {
-    bool isIdle = true;
     for (bool flag : idle) {
         if (!flag) {
-            isIdle = false;
-            break;
+            return false;
         }
     }
-    return isIdle;
+    return true;
 }
 
 TaskSystemParallelThreadPoolSleeping::~TaskSystemParallelThreadPoolSleeping() {
