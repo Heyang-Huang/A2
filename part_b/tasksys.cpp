@@ -166,7 +166,7 @@ TaskSystemParallelThreadPoolSleeping::~TaskSystemParallelThreadPoolSleeping() {
 }
 
 bool TaskSystemParallelThreadPoolSleeping::isAllIdle() {
-    bool isIdle = true
+    bool isIdle = true;
     for (bool flag : idle) {
         if (!flag) {
             isIdle = false;
