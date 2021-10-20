@@ -91,20 +91,14 @@ class TaskSystemParallelThreadPoolSleeping: public ITaskSystem {
                                 const std::vector<TaskID>& deps);
         void sync();
     private:
-        // std::pair is a pair of runnable and num_total_tasks
         std::map<TaskID, std::pair<IRunnable*, int>> id_to_task;
         std::map<TaskID, std::set<TaskID>> deps_map;
         std::map<TaskID, std::set<TaskID>> deps_map_inverse;
-        // array<int, 3> of processing_progress have three elements:
-        // 1. total task number
-        // 2. current task number picked up
-        // 3. current task number finished
         std::map<TaskID, std::array<int, 3>> processing_progress;
         std::mutex dep_lock;
         int task_count;
         int finished_task_count;
         int workers_ready;
-        void task_finished(TaskID tid);
         std::condition_variable thread_waiting;
         bool all_tasks_finished;
 

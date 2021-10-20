@@ -188,7 +188,43 @@ void TaskSystemParallelThreadPoolSleeping::worker(int workerId){
         if (cur_task == num_total_tasks) {
             idle[workerId] = true;
             if (!all_done && isAllIdle()) {
-                task_finished(cur_tid);
+                dep_lock.lock();
+                deps_map.erase(cur_tid);
+                for (const TaskID id_to_delete: deps_map_inverse[cur_tid]) {
+                    deps_map[id_to_delete].erase(cur_tid);
+
+                    if (deps_map[id_to_delete].size() == 0) {
+                        processing_progress[id_to_delete] = {id_to_task[id_to_delete].second, 0, 0};
+                    }
+                }
+                deps_map_inverse.erase(cur_tid);
+
+                finished_task_count++;
+    
+                processing_progress.erase(cur_tid);
+
+                id_to_task.erase(cur_tid);
+                
+                if (processing_progress.size() != 0) {
+                    for (auto curr_task: processing_progress) {
+                        TaskID id = curr_task.first;
+                        array<int, 3> task = curr_task.second;
+                        if (task[1] == 0) {
+                            cur_tid = id;
+                            addRunnable(id_to_task[id].first, id_to_task[id].second);
+                            break;
+                        }
+                    }
+                } else {
+                        all_done = true;
+                  }
+    
+    
+                dep_lock.unlock();
+                if (deps_map.size() == 0) {
+                    checkWorkLeft.notify_all();
+                }
+
             } else {
                 wakeThread[workerId].wait(task_lock);
             }
@@ -231,46 +267,6 @@ void TaskSystemParallelThreadPoolSleeping::addRunnable(IRunnable* run, int total
     task_lock.unlock();
     for (auto& wake_head : wakeThread) {
         wake_head.notify_all();
-    }
-}
-
-void TaskSystemParallelThreadPoolSleeping::task_finished(TaskID tid) {
-
-    dep_lock.lock();
-    deps_map.erase(tid);
-    for (const TaskID id_to_delete: deps_map_inverse[tid]) {
-        deps_map[id_to_delete].erase(tid);
-
-        if (deps_map[id_to_delete].size() == 0) {
-            processing_progress[id_to_delete] = {id_to_task[id_to_delete].second, 0, 0};
-        }
-    }
-    deps_map_inverse.erase(tid);
-
-    finished_task_count++;
-    
-    processing_progress.erase(tid);
-
-    id_to_task.erase(tid);
-
-    if (processing_progress.size() != 0) {
-        for (auto curr_task: processing_progress) {
-            TaskID id = curr_task.first;
-            array<int, 3> task = curr_task.second;
-            if (task[1] == 0) {
-                cur_tid = id;
-                addRunnable(id_to_task[id].first, id_to_task[id].second);
-                break;
-            }
-        }
-    } else {
-        all_done = true;
-    }
-    
-    
-    dep_lock.unlock();
-    if (deps_map.size() == 0) {
-        checkWorkLeft.notify_all();
     }
 }
 
