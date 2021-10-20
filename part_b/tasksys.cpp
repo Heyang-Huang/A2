@@ -311,10 +311,9 @@ TaskID TaskSystemParallelThreadPoolSleeping::runAsyncWithDeps(IRunnable* runnabl
     if (valid_deps.size() == 0) {
         processing_progress[curr_task_id] = {num_total_tasks, 0, 0};
     }
-    all_done = false
+    all_done = false;
     if (isAllIdle()) {
         cur_tid = curr_task_id;
-        cout << "starting " << cur_tid<<endl;
         addRunnable(runnable, num_total_tasks);
     }
     dep_lock.unlock();
