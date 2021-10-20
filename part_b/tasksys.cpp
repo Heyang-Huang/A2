@@ -148,23 +148,6 @@ TaskSystemParallelThreadPoolSleeping::TaskSystemParallelThreadPoolSleeping(int n
     }
 }
 
-TaskSystemParallelThreadPoolSleeping::~TaskSystemParallelThreadPoolSleeping() {
-
-    task_lock.lock();
-    while (!isAllIdle()) {
-        checkWorkLeft.wait(task_lock);
-    }
-    task_lock.unlock();
-
-    deconstruct = true;
-    for (auto& cv : wakeThread) {
-        cv.notify_all();
-    }
-    for (thread& t : thread_vec) {
-        t.join();
-    }
-}
-
 bool TaskSystemParallelThreadPoolSleeping::isAllIdle() {
     bool isIdle = true;
     for (bool flag : idle) {
@@ -175,6 +158,24 @@ bool TaskSystemParallelThreadPoolSleeping::isAllIdle() {
     }
     return isIdle;
 }
+
+TaskSystemParallelThreadPoolSleeping::~TaskSystemParallelThreadPoolSleeping() {
+
+    task_lock.lock();
+    while (!isAllIdle()) {
+        checkWorkLeft.wait(task_lock);
+    }
+    task_lock.unlock();
+
+    deconstruct = true;
+    for (auto& wake_head : wakeThread) {
+        wake_head.notify_all();
+    }
+    for (thread& thread_head : thread_vec) {
+        thread_head.join();
+    }
+}
+
 void TaskSystemParallelThreadPoolSleeping::worker(int workerId){
 
     task_lock.lock();
