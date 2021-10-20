@@ -113,7 +113,7 @@ class TaskSystemParallelThreadPoolSleeping: public ITaskSystem {
         int num_total_tasks;
         int cur_task;
         TaskID cur_tid;
-        bool deconstruct;
+        bool isDeconstruct;
         IRunnable* runnable;
         bool startup;
         std::vector<std::condition_variable_any> wakeThread;

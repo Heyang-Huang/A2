@@ -133,7 +133,7 @@ TaskSystemParallelThreadPoolSleeping::TaskSystemParallelThreadPoolSleeping(int n
                                                                             cur_task(0),
                                                                             num_total_tasks(0),
                                                                             idle(num_threads, true),
-                                                                            deconstruct(false),
+                                                                            isDeconstruct(false),
                                                                             wakeThread(num_threads),
                                                                             task_lock(),
                                                                             task_count(0),
@@ -167,7 +167,7 @@ TaskSystemParallelThreadPoolSleeping::~TaskSystemParallelThreadPoolSleeping() {
     }
     task_lock.unlock();
 
-    deconstruct = true;
+    isDeconstruct = true;
     for (auto& wake_head : wakeThread) {
         wake_head.notify_all();
     }
@@ -181,10 +181,9 @@ void TaskSystemParallelThreadPoolSleeping::worker(int workerId){
     task_lock.lock();
     workers_ready++;
     readyToStart.notify_all();
-    cout << workerId << " is about to start " << endl;
     wakeThread[workerId].wait(task_lock);
     task_lock.unlock();
-    while (!deconstruct) {
+    while (!isDeconstruct) {
         task_lock.lock();
         if (cur_task == num_total_tasks) {
             idle[workerId] = true;
@@ -195,7 +194,7 @@ void TaskSystemParallelThreadPoolSleeping::worker(int workerId){
             }
 
             task_lock.unlock();
-            if (deconstruct) {
+            if (isDeconstruct) {
                 break;
             }
             continue;
@@ -230,8 +229,8 @@ void TaskSystemParallelThreadPoolSleeping::addRunnable(IRunnable* run, int total
         readyToStart.wait(task_lock);
     }
     task_lock.unlock();
-    for (auto& cv : wakeThread) {
-        cv.notify_all();
+    for (auto& wake_head : wakeThread) {
+        wake_head.notify_all();
     }
 }
 
@@ -309,7 +308,6 @@ TaskID TaskSystemParallelThreadPoolSleeping::runAsyncWithDeps(IRunnable* runnabl
     all_done = false;
     if (isAllIdle()) {
         cur_tid = curr_task_id;
-        cout << "starting " << cur_tid<<endl;
         addRunnable(runnable, num_total_tasks);
     }
     dep_lock.unlock();
