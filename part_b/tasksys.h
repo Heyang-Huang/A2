@@ -98,15 +98,15 @@ class TaskSystemParallelThreadPoolSleeping: public ITaskSystem {
         std::mutex dep_lock;
         int task_count;
         int finished_task_count;
-        int workers_ready;
+        int numRdyWorker;
         std::condition_variable thread_waiting;
         bool all_tasks_finished;
 
         void worker(int workerId);
         bool isAllIdle();
         int num_total_tasks;
-        int cur_task;
-        TaskID cur_tid;
+        int this_task;
+        TaskID this_tid;
         bool isDeconstruct;
         IRunnable* runnable;
         bool startup;

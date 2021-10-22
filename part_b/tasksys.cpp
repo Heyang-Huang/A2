@@ -130,14 +130,14 @@ const char* TaskSystemParallelThreadPoolSleeping::name() {
 TaskSystemParallelThreadPoolSleeping::TaskSystemParallelThreadPoolSleeping(int num_threads):
                                                                             ITaskSystem(num_threads),
                                                                             thread_vec(num_threads),
-                                                                            cur_task(0),
+                                                                            this_task(0),
                                                                             num_total_tasks(0),
                                                                             idle(num_threads, true),
                                                                             isDeconstruct(false),
                                                                             wakeThread(num_threads),
                                                                             task_lock(),
                                                                             task_count(0),
-                                                                            workers_ready(0),
+                                                                            numRdyWorker(0),
                                                                             all_tasks_finished(true),
                                                                             all_done(true),
                                                                             startup(false) {
@@ -179,38 +179,38 @@ TaskSystemParallelThreadPoolSleeping::~TaskSystemParallelThreadPoolSleeping() {
 void TaskSystemParallelThreadPoolSleeping::worker(int workerId){
 
     task_lock.lock();
-    workers_ready++;
+    numRdyWorker++;
     readyToStart.notify_all();
     wakeThread[workerId].wait(task_lock);
     task_lock.unlock();
     while (!isDeconstruct) {
         task_lock.lock();
-        if (cur_task == num_total_tasks) {
+        if (this_task == num_total_tasks) {
             idle[workerId] = true;
             if (!all_done && isAllIdle()) {
                 dep_lock.lock();
-                deps_map.erase(cur_tid);
-                for (const TaskID id_to_delete: deps_map_inverse[cur_tid]) {
-                    deps_map[id_to_delete].erase(cur_tid);
+                deps_map.erase(this_tid);
+                for (const TaskID id_to_delete: deps_map_inverse[this_tid]) {
+                    deps_map[id_to_delete].erase(this_tid);
 
                     if (deps_map[id_to_delete].size() == 0) {
                         processing_progress[id_to_delete] = {id_to_task[id_to_delete].second, 0, 0};
                     }
                 }
-                deps_map_inverse.erase(cur_tid);
+                deps_map_inverse.erase(this_tid);
 
                 finished_task_count++;
     
-                processing_progress.erase(cur_tid);
+                processing_progress.erase(this_tid);
 
-                id_to_task.erase(cur_tid);
+                id_to_task.erase(this_tid);
                 
                 if (processing_progress.size() != 0) {
                     for (auto curr_task: processing_progress) {
                         TaskID id = curr_task.first;
                         array<int, 3> task = curr_task.second;
                         if (task[1] == 0) {
-                            cur_tid = id;
+                            this_tid = id;
                             rdy2Run(id_to_task[id].first, id_to_task[id].second);
                             break;
                         }
@@ -236,9 +236,9 @@ void TaskSystemParallelThreadPoolSleeping::worker(int workerId){
             continue;
         }
 
-        int my_task = cur_task;
+        int my_task = this_task;
         int my_total_tasks = num_total_tasks;
-        cur_task++;
+        this_task++;
         task_lock.unlock();
 
         runnable->runTask(my_task, my_total_tasks);
@@ -254,14 +254,14 @@ void TaskSystemParallelThreadPoolSleeping::run(IRunnable* run, int total_tasks) 
 
 
 void TaskSystemParallelThreadPoolSleeping::rdy2Run(IRunnable* run, int total_tasks) {
-    cur_task = 0;
+    this_task = 0;
     num_total_tasks = total_tasks;
     runnable = run;
     for (int i =0; i < idle.size(); i++) {
         idle[i] = false;
     }
     task_lock.lock();
-    while (workers_ready != thread_vec.size()) {
+    while (numRdyWorker != thread_vec.size()) {
         readyToStart.wait(task_lock);
     }
     task_lock.unlock();
@@ -303,7 +303,7 @@ TaskID TaskSystemParallelThreadPoolSleeping::runAsyncWithDeps(IRunnable* runnabl
     }
     all_done = false;
     if (isAllIdle()) {
-        cur_tid = curr_task_id;
+        this_tid = curr_task_id;
         rdy2Run(runnable, num_total_tasks);
     }
     dep_lock.unlock();
